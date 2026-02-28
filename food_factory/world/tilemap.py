@@ -257,3 +257,122 @@ class TileMap:
             [self.tiles[r][c].walkable for c in range(self.cols)]
             for r in range(self.rows)
         ]
+
+    def move_drop_point(self, old_tile: "Tile", new_col: int, new_row: int, dept_name: str) -> bool:
+        """
+        Move a drop point from old_tile to (new_col, new_row).
+        Validates: target must be walkable, inside the dept zone, not a wall.
+        Returns True if successfully moved.
+        """
+        dept = self.departments.get(dept_name)
+        if not dept:
+            return False
+
+        new_tile = self.get_tile(new_col, new_row)
+        if not new_tile:
+            return False
+        if new_tile.is_wall or not new_tile.walkable:
+            return False
+
+        # Must be within dept zone
+        if not (dept.zone_col <= new_col < dept.zone_col + dept.zone_w and
+                dept.zone_row <= new_row < dept.zone_row + dept.zone_h):
+            return False
+
+        # Move drop point
+        old_tile.is_drop_point = False
+        new_tile.is_drop_point = True
+        new_tile.dept = dept_name
+
+        # Update department's drop_point_tiles list
+        if old_tile in dept.drop_point_tiles:
+            idx = dept.drop_point_tiles.index(old_tile)
+            dept.drop_point_tiles[idx] = new_tile
+
+        # Refresh background
+        self.render_background()
+        return True
+
+    def place_dept_zone(self, dept_name: str, col: int, row: int, w: int, h: int) -> bool:
+        """
+        Place or replace a department zone at (col, row) with size (w, h).
+        Clears old zone tiles, writes new ones, adds workstations and drop points.
+        """
+        from settings import DEPT_COLORS, DEPT_NAMES
+
+        if w < 4 or h < 4:
+            return False
+
+        # Clear old zone if dept already exists
+        old_dept = self.departments.get(dept_name)
+        if old_dept:
+            for r in range(old_dept.zone_row, old_dept.zone_row + old_dept.zone_h):
+                for c in range(old_dept.zone_col, old_dept.zone_col + old_dept.zone_w):
+                    t = self.get_tile(c, r)
+                    if t and t.dept == dept_name:
+                        t.dept = None
+                        t.is_wall = False
+                        t.is_workstation = False
+                        t.is_drop_point = False
+                        t.walkable = True
+                        t.is_corridor = False
+
+        # Create or update department
+        from world.department import Department
+        dept = Department(
+            name=dept_name,
+            display_name=DEPT_NAMES.get(dept_name, dept_name.title()),
+            color=DEPT_COLORS.get(dept_name, (128, 128, 128)),
+            zone_col=col, zone_row=row, zone_w=w, zone_h=h,
+        )
+        self.departments[dept_name] = dept
+
+        # Write tiles
+        for r in range(row, row + h):
+            for c in range(col, col + w):
+                t = self.get_tile(c, r)
+                if not t:
+                    continue
+                on_edge = (r == row or r == row + h - 1 or c == col or c == col + w - 1)
+                if on_edge:
+                    t.is_wall = True
+                    t.walkable = False
+                    t.dept = None
+                else:
+                    t.dept = dept_name
+                    t.walkable = True
+                    t.is_wall = False
+                    t.is_corridor = False
+
+        # Punch doorways on left and right edges
+        for gap_r in [row + h // 3, row + 2 * h // 3]:
+            for edge_c in [col, col + w - 1]:
+                t = self.get_tile(edge_c, gap_r)
+                if t:
+                    t.is_wall = False
+                    t.walkable = True
+                    t.dept = dept_name
+
+        # Place workstations
+        ws_positions = [
+            (col + w // 4,     row + h // 3),
+            (col + w // 4,     row + 2 * h // 3),
+            (col + 3 * w // 4, row + h // 3),
+            (col + 3 * w // 4, row + 2 * h // 3),
+        ]
+        for wc, wr in ws_positions:
+            t = self.get_tile(wc, wr)
+            if t and not t.is_wall:
+                t.is_workstation = True
+                dept.workstation_tiles.append(t)
+
+        # Place drop points
+        mid_r = row + h // 2
+        for dp_c in [col + 1, col + w - 2]:
+            t = self.get_tile(dp_c, mid_r)
+            if t and not t.is_wall:
+                t.is_drop_point = True
+                dept.drop_point_tiles.append(t)
+
+        self.render_background()
+        return True

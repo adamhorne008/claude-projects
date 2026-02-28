@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 import pygame
-from settings import SCREEN_W, SCREEN_H, HUD_HEIGHT, VIEWPORT_H, COL_HUD_BG
+from settings import SCREEN_W, HUD_HEIGHT, VIEWPORT_H, COL_HUD_BG
 from ui.clock_panel import ClockPanel
+from ui.finance_panel import FinancePanel
 from ui.department_panel import DepartmentPanel
 from ui.order_panel import OrderPanel
 
@@ -12,32 +13,35 @@ class HUD:
     """
     Bottom strip HUD layout (1280 × HUD_HEIGHT):
 
-      x=0      x=220     x=560                x=1280
-      +--------+---------+---------------------+
-      | Clock  |  Depts  |      Orders         |
-      | 220px  |  340px  |      720px          |
-      +--------+---------+---------------------+
+      Clock(200) | Finance(180) | Depts(300) | Orders(600) = 1280px
     """
 
-    CLOCK_W = 200
-    DEPT_W  = 360
-    ORDER_W = SCREEN_W - CLOCK_W - DEPT_W   # remaining width
+    CLOCK_W   = 200
+    FINANCE_W = 180
+    DEPT_W    = 300
+    ORDER_W   = SCREEN_W - 200 - 180 - 300   # 600px
 
-    def __init__(self, clock, worker_manager, task_manager, order_manager, event_bus) -> None:
-        hud_y = VIEWPORT_H   # HUD starts just below the world viewport
+    def __init__(self, clock, worker_manager, task_manager, order_manager, event_bus, finance_manager=None) -> None:
+        hud_y = VIEWPORT_H
 
         self._clock_panel = ClockPanel(
             pygame.Rect(0, hud_y, self.CLOCK_W, HUD_HEIGHT),
             clock,
         )
+        self._finance_panel = FinancePanel(
+            pygame.Rect(self.CLOCK_W, hud_y, self.FINANCE_W, HUD_HEIGHT),
+            finance_manager,
+        ) if finance_manager else None
+
+        dept_x = self.CLOCK_W + self.FINANCE_W
         self._dept_panel = DepartmentPanel(
-            pygame.Rect(self.CLOCK_W, hud_y, self.DEPT_W, HUD_HEIGHT),
+            pygame.Rect(dept_x, hud_y, self.DEPT_W, HUD_HEIGHT),
             worker_manager,
             task_manager,
             event_bus,
         )
         self._order_panel = OrderPanel(
-            pygame.Rect(self.CLOCK_W + self.DEPT_W, hud_y, self.ORDER_W, HUD_HEIGHT),
+            pygame.Rect(dept_x + self.DEPT_W, hud_y, self.ORDER_W, HUD_HEIGHT),
             order_manager,
         )
 
@@ -55,10 +59,11 @@ class HUD:
         self._dept_panel.update()
 
     def draw(self, screen: pygame.Surface) -> None:
-        # HUD background bar
         hud_rect = pygame.Rect(0, VIEWPORT_H, SCREEN_W, HUD_HEIGHT)
         pygame.draw.rect(screen, COL_HUD_BG, hud_rect)
 
         self._clock_panel.draw(screen)
+        if self._finance_panel:
+            self._finance_panel.draw(screen)
         self._dept_panel.draw(screen)
         self._order_panel.draw(screen)

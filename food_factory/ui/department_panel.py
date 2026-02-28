@@ -50,8 +50,8 @@ class DepartmentPanel:
 
             d = dept_name  # capture
             self._buttons[dept_name] = {
-                "plus":  Button(plus_rect,  "+", callback=lambda d=d: self._bus.publish("WORKER_HIRED", {"dept": d})),
-                "minus": Button(minus_rect, "-", callback=lambda d=d: self._bus.publish("WORKER_FIRED", {"dept": d})),
+                "plus":  Button(plus_rect,  "+", callback=lambda d=d: self._bus.publish("REQUEST_HIRE", {"dept": d})),
+                "minus": Button(minus_rect, "-", callback=lambda d=d: self._bus.publish("REQUEST_FIRE", {"dept": d})),
             }
 
     def handle_event(self, event: pygame.Event) -> bool:

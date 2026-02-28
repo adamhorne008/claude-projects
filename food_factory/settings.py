@@ -62,7 +62,7 @@ DEPT_NAMES = {
 WORKER_RADIUS = 10           # drawn as circle, pixels
 WORKER_SPEED  = 120          # pixels per second at 1x speed
 WORKER_WORK_DURATION = 4.0   # sim seconds to complete one task (base)
-INITIAL_WORKERS_PER_DEPT = 2
+INITIAL_WORKERS_PER_DEPT = 0
 
 # --- Production ---
 STAGE_ORDER = ["receiving", "prep", "cooking", "qc", "packaging", "dispatch"]
@@ -73,7 +73,7 @@ MEAL_TYPES = ["Burger", "Salad", "Pasta", "Sandwich", "Soup", "Pizza", "Wrap"]
 # --- Orders ---
 ORDERS_PER_WEEK_MIN = 2
 ORDERS_PER_WEEK_MAX = 4
-ITEMS_PER_ORDER_MIN = 4
+ITEMS_PER_ORDER_MIN = 5
 ITEMS_PER_ORDER_MAX = 10
 
 CLIENT_NAMES = [
@@ -81,6 +81,10 @@ CLIENT_NAMES = [
     "Metro Meals", "Sunny Kitchen", "Peak Provisions", "Urban Eats",
     "Harbor House", "Valley Vittles", "Crestwood Catering",
 ]
+
+# --- Finance ---
+STARTING_BALANCE   = 10_000.0
+WORKER_HOURLY_WAGE = 10.0       # £ per worker per sim hour
 
 # --- UI ---
 HUD_HEIGHT        = 130

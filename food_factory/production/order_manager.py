@@ -5,9 +5,10 @@ import random
 from typing import TYPE_CHECKING
 
 from production.order import Order, OrderStatus
+from production.recipe_manager import RecipeManager
 from items.item import Item
 from settings import (
-    MEAL_TYPES, CLIENT_NAMES,
+    CLIENT_NAMES,
     ORDERS_PER_WEEK_MIN, ORDERS_PER_WEEK_MAX,
     ITEMS_PER_ORDER_MIN, ITEMS_PER_ORDER_MAX,
     STAGE_ORDER,
@@ -32,10 +33,12 @@ class OrderManager:
         task_manager: TaskManager,
         tilemap: TileMap,
         event_bus: EventBus,
+        recipe_manager: RecipeManager,
     ) -> None:
         self._task_manager = task_manager
         self._tilemap = tilemap
         self._bus = event_bus
+        self._rm = recipe_manager
 
         self.orders: list[Order] = []
 
@@ -58,11 +61,10 @@ class OrderManager:
         item = data.get("item")
         if not item:
             return
-        # Find the order this item belongs to
         order = self.get_order_by_id(item.order_id)
-        if order and order.progress_pct >= 1.0:
-            order.mark_delivered()
-            self._bus.publish("ORDER_COMPLETE", {"order": order})
+        if order and order.progress_pct >= 1.0 and order.status.value not in ("READY", "DELIVERED"):
+            order.status = __import__("production.order", fromlist=["OrderStatus"]).OrderStatus.READY
+            self._bus.publish("ORDER_READY", {"order": order})
 
     # ------------------------------------------------------------------
     # Seeding — called at game start to populate week 1 orders
@@ -80,12 +82,22 @@ class OrderManager:
     # Order generation
     # ------------------------------------------------------------------
 
+    def mark_delivered(self, order_id: str) -> None:
+        """Called by TruckManager after truck departs."""
+        order = self.get_order_by_id(order_id)
+        if order:
+            order.mark_delivered()
+            self._bus.publish("ORDER_COMPLETE", {"order": order})
+
     def _generate_orders(self, week: int) -> list[Order]:
         count = random.randint(ORDERS_PER_WEEK_MIN, ORDERS_PER_WEEK_MAX)
         orders = []
+        available_meals = self._rm.recipe_names()
+        if not available_meals:
+            return orders
         for i in range(count):
-            num_meal_types = random.randint(1, 3)
-            meal_choices = random.sample(MEAL_TYPES, num_meal_types)
+            num_meal_types = random.randint(1, min(3, len(available_meals)))
+            meal_choices = random.sample(available_meals, num_meal_types)
             total_items = random.randint(ITEMS_PER_ORDER_MIN, ITEMS_PER_ORDER_MAX)
             # Distribute total_items across meal types
             meals: dict[str, int] = {}

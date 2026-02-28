@@ -35,8 +35,8 @@ class WorkerManager:
 
         self._workers: dict[int, Worker] = {}
 
-        event_bus.subscribe("WORKER_HIRED", self._on_hire)
-        event_bus.subscribe("WORKER_FIRED", self._on_fire)
+        event_bus.subscribe("REQUEST_HIRE", self._on_hire)
+        event_bus.subscribe("REQUEST_FIRE", self._on_fire)
 
     # ------------------------------------------------------------------
     # Lifecycle

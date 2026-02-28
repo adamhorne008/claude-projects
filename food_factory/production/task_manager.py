@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from items.item import Item
     from workers.worker import Worker
     from core.event_bus import EventBus
+    from production.recipe_manager import RecipeManager
 
 
 class TaskManager:
@@ -29,9 +30,10 @@ class TaskManager:
       new PROCESS task created at next dept
     """
 
-    def __init__(self, tilemap: TileMap, event_bus: EventBus) -> None:
+    def __init__(self, tilemap: TileMap, event_bus: EventBus, recipe_manager=None) -> None:
         self._tilemap = tilemap
         self._bus = event_bus
+        self._rm = recipe_manager   # optional; used for per-recipe cook times
         self.departments = tilemap.departments
 
         self._tasks: dict[str, Task] = {}
@@ -140,13 +142,18 @@ class TaskManager:
             return None
 
         item.being_processed = True
+        cook_time = WORKER_WORK_DURATION
+        if self._rm:
+            recipe = self._rm.get_by_name(item.meal_name)
+            if recipe:
+                cook_time = recipe.cook_time_seconds
         task = Task(
             task_type=TaskType.PROCESS,
             item_id=item.item_id,
             dept=dept.name,
             target_col=workstation.col,
             target_row=workstation.row,
-            work_duration=WORKER_WORK_DURATION,
+            work_duration=cook_time,
         )
         self._tasks[task.task_id] = task
         self._pending.append(task)
